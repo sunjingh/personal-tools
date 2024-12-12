@@ -1,86 +1,94 @@
 <template>
-  <div>
-    <input type="file" @change="handleFileChange" />
-    <div>
-      <span>字数：</span>
-      <span>{{ wordCount }}</span>
-    </div>
-    <div>
-      <span>页数：</span>
-      <span>{{ pageNum }}</span>
-    </div>
-    <SvgIcon name="article_icon_file"></SvgIcon>
-  </div>
+  <el-container>
+    <el-header center>
+      <h1>工具箱</h1>
+    </el-header>
+    <el-main>
+      <div center>
+        <nav>
+          <div border="1px solid #ccc" bg-blue center p-3 cursor-pointer class="card" v-for="item in clickItemList"
+            :key="item.text" @click="routerTo(item.path)">
+            <span>{{ item.text }}</span>
+          </div>
+        </nav>
+      </div>
+    </el-main>
+  </el-container>
 </template>
 
 <script setup lang="ts">
-// @ts-expect-error pptx-parser 模块未提供类型定义文件
-import parse from 'pptx-parser'
+const router = useRouter()
 
-const pageNum = ref(0)
-const wordCount = ref(0)
-
-async function handleFileChange(e: Event) {
-  wordCount.value = 0
-  const file = (e.target as HTMLInputElement)?.files?.[0]
-  if (file) {
-    const pptJson = await parse(file)
-
-    pageNum.value = pptJson.slides.length
-
-    const textRunList = extractTextRunValues(pptJson)
-
-    textRunList.forEach((ele) => {
-      wordCount.value += countWords(ele.content);
-    });
-  }
-
+interface IClickItem {
+  text: string
+  path: string
 }
 
-interface TextRunObj {
-  textRun: ResultItem; // textRun 属性的类型为ResultItem
-  [key: string]: unknown; // 其他可选的属性，可以是任意类型
-}
-interface ResultItem {
-  content: string; // content 属性的类型为字符串
-  [key: string]: unknown; // 其他可选的属性，可以是任意类型
-}
+const clickItemList: IClickItem[] = [
+  {
+    text: 'ppt字数统计',
+    path: '/count-ppt-word',
+  },
+]
 
-function extractTextRunValues(obj: TextRunObj): ResultItem[] {
-  const result: ResultItem[] = [];
-
-  function recurse(current: TextRunObj): void {
-    if (typeof current !== "object" || current === null) return;
-
-    for (const key in current) {
-      if (current[key]) {
-        if (key === "textRun") {
-          result.push(current[key]); // 如果是 textRun 属性且值为字符串，提取其值
-        } else if (typeof current[key] === "object") {
-          recurse(current[key] as TextRunObj); // 递归遍历子对象
-        }
-      }
-
-    }
-  }
-
-  recurse(obj);
-  return result;
-}
-
-function countWords(text: string) {
-  if (typeof text !== "string") return 0;
-
-  const textTemp = text.replace(/\s+/g, '');
-
-  // 正则表达式：匹配英文单词、中文字符、数字
-  if (!/[\u4e00-\u9fa5]+/.test(textTemp)) {
-    return textTemp.split(' ').length
-  }
-
-  // 如果没有匹配项，返回 0
-  return textTemp.length;
+function routerTo(path: string) {
+  router.push(path)
 }
 </script>
 
-<style scoped></style>
+<style scoped lang="scss">
+/* From Uiverse.io by eslam-hany */
+.card {
+  position: relative;
+  width: 320px;
+  height: 220px;
+  background: mediumturquoise;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 25px;
+  font-weight: bold;
+  border-radius: 15px;
+  cursor: pointer;
+}
+
+.card::before,
+.card::after {
+  position: absolute;
+  content: "";
+  width: 20%;
+  height: 20%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 25px;
+  font-weight: bold;
+  background-color: lightblue;
+  transition: all 0.5s;
+}
+
+.card::before {
+  top: 0;
+  right: 0;
+  border-radius: 0 15px 0 100%;
+}
+
+.card::after {
+  bottom: 0;
+  left: 0;
+  border-radius: 0 100% 0 15px;
+}
+
+.card:hover::before,
+.card:hover:after {
+  width: 100%;
+  height: 100%;
+  border-radius: 15px;
+  transition: all 0.5s;
+}
+
+.card:hover:after {
+  overflow: hidden;
+  content: "点击进入";
+}
+</style>
