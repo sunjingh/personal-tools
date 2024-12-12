@@ -9,13 +9,13 @@
       <span>页数：</span>
       <span>{{ pageNum }}</span>
     </div>
+    <SvgIcon name="article_icon_file"></SvgIcon>
   </div>
 </template>
 
 <script setup lang="ts">
 // @ts-expect-error pptx-parser 模块未提供类型定义文件
 import parse from 'pptx-parser'
-import { ref } from 'vue';
 
 const pageNum = ref(0)
 const wordCount = ref(0)
