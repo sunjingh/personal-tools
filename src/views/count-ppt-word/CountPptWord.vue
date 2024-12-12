@@ -15,7 +15,7 @@
               <div class="back-side cover"></div>
             </div>
             <label class="custom-file-upload">
-              <input class="title" type="file" @change="handleFileChange" />
+              <input class="title" type="file" accept=".pptx" @change="handleFileChange" />
               选择文件
             </label>
           </div>
@@ -39,7 +39,7 @@
         </div>
       </el-col>
     </el-row>
-    <GoBack mt="10%" @click="goBack">返回</GoBack>
+    <GoBack mt="10%">返回</GoBack>
   </div>
 </template>
 
@@ -47,17 +47,26 @@
 // @ts-expect-error pptx-parser 模块未提供类型定义文件
 import parse from 'pptx-parser'
 
-const router = useRouter()
-
 const pageNum = ref(0)
 const wordCount = ref(0)
 const fileName = ref('文件信息')
 
-async function handleFileChange(e: Event) {
+async function handleFileChange(event: Event) {
   fileName.value = '文件信息'
   wordCount.value = 0
-  const file = (e.target as HTMLInputElement)?.files?.[0]
+  const file = (event.target as HTMLInputElement)?.files?.[0]
   if (file) {
+    if (file.type !== 'application/vnd.openxmlformats-officedocument.presentationml.presentation') {
+      // 清空 input 的值
+      (event.target as HTMLInputElement).value = ''
+      ElNotification({
+        title: '只支持pptx格式',
+        message: '若是ppt类型，请先转换成pptx格式',
+        type: 'error',
+      })
+      return
+    }
+
     fileName.value = file.name
 
     const pptJson = await parse(file)
@@ -67,47 +76,45 @@ async function handleFileChange(e: Event) {
     const textRunList = extractTextRunValues(pptJson)
 
     textRunList.forEach((ele) => {
-      wordCount.value += countWords(ele.content);
-    });
+      wordCount.value += countWords(ele.content)
+    })
   }
 
 }
 
 interface TextRunObj {
-  textRun: ResultItem; // textRun 属性的类型为ResultItem
-  [key: string]: unknown; // 其他可选的属性，可以是任意类型
+  textRun: ResultItem // textRun 属性的类型为ResultItem
+  [key: string]: unknown // 其他可选的属性，可以是任意类型
 }
 interface ResultItem {
-  content: string; // content 属性的类型为字符串
-  [key: string]: unknown; // 其他可选的属性，可以是任意类型
+  content: string // content 属性的类型为字符串
+  [key: string]: unknown // 其他可选的属性，可以是任意类型
 }
 
 function extractTextRunValues(obj: TextRunObj): ResultItem[] {
-  const result: ResultItem[] = [];
-
+  const result: ResultItem[] = []
   function recurse(current: TextRunObj): void {
-    if (typeof current !== "object" || current === null) return;
+    if (typeof current !== "object" || current === null) return
 
     for (const key in current) {
       if (current[key]) {
         if (key === "textRun") {
-          result.push(current[key]); // 如果是 textRun 属性且值为字符串，提取其值
+          result.push(current[key]) // 如果是 textRun 属性且值为字符串，提取其值
         } else if (typeof current[key] === "object") {
-          recurse(current[key] as TextRunObj); // 递归遍历子对象
+          recurse(current[key] as TextRunObj) // 递归遍历子对象
         }
       }
 
     }
   }
-
-  recurse(obj);
-  return result;
+  recurse(obj)
+  return result
 }
 
 function countWords(text: string) {
-  if (typeof text !== "string") return 0;
+  if (typeof text !== "string") return 0
 
-  const textTemp = text.replace(/\s+/g, '');
+  const textTemp = text.replace(/\s+/g, '')
 
   // 正则表达式：匹配英文单词、中文字符、数字
   if (!/[\u4e00-\u9fa5]+/.test(textTemp)) {
@@ -115,11 +122,7 @@ function countWords(text: string) {
   }
 
   // 如果没有匹配项，返回 0
-  return textTemp.length;
-}
-
-function goBack() {
-  router.back()
+  return textTemp.length
 }
 </script>
 
