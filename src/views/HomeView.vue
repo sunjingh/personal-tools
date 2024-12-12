@@ -1,19 +1,20 @@
 <template>
-  <el-container>
-    <el-header center>
-      <h1>工具箱</h1>
-    </el-header>
-    <el-main>
-      <div center>
-        <nav>
-          <div border="1px solid #ccc" bg-blue center p-3 cursor-pointer class="card" v-for="item in clickItemList"
-            :key="item.text" @click="routerTo(item.path)">
+  <div center h="90vh">
+    <el-container>
+      <el-header center>
+        <h1 mb="10%">MY DARLING工具箱</h1>
+      </el-header>
+      <el-main>
+        <nav center gap-6>
+          <div class="item-card" v-for="item in clickItemList" :key="item.text"
+            :style="{ backgroundColor: item.bgColor, '--hover-bg-color': item.hoverBgColor }"
+            @click="routerTo(item.path)">
             <span>{{ item.text }}</span>
           </div>
         </nav>
-      </div>
-    </el-main>
-  </el-container>
+      </el-main>
+    </el-container>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -22,23 +23,34 @@ const router = useRouter()
 interface IClickItem {
   text: string
   path: string
+  bgColor?: string
+  hoverBgColor?: string
 }
 
 const clickItemList: IClickItem[] = [
   {
-    text: 'ppt字数统计',
+    text: '统计ppt中的字数',
     path: '/count-ppt-word',
+    bgColor: 'mediumturquoise',
+    hoverBgColor: 'lightblue',
+  },
+  {
+    text: '敬请期待',
+    path: '',
+    bgColor: 'rgb(176, 238, 246)',
+    hoverBgColor: 'rgb(126, 138, 246)',
   },
 ]
 
 function routerTo(path: string) {
-  router.push(path)
+  if (path) {
+    router.push(path)
+  }
 }
 </script>
 
 <style scoped lang="scss">
-/* From Uiverse.io by eslam-hany */
-.card {
+.item-card {
   position: relative;
   width: 320px;
   height: 220px;
@@ -50,45 +62,45 @@ function routerTo(path: string) {
   font-weight: bold;
   border-radius: 15px;
   cursor: pointer;
-}
 
-.card::before,
-.card::after {
-  position: absolute;
-  content: "";
-  width: 20%;
-  height: 20%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 25px;
-  font-weight: bold;
-  background-color: lightblue;
-  transition: all 0.5s;
-}
+  &::before,
+  &::after {
+    position: absolute;
+    content: "";
+    width: 20%;
+    height: 20%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 25px;
+    font-weight: bold;
+    background-color: var(--hover-bg-color); // 使用 CSS 自定义属性
+    transition: all 0.5s;
+  }
 
-.card::before {
-  top: 0;
-  right: 0;
-  border-radius: 0 15px 0 100%;
-}
+  &::before {
+    top: 0;
+    right: 0;
+    border-radius: 0 15px 0 100%;
+  }
 
-.card::after {
-  bottom: 0;
-  left: 0;
-  border-radius: 0 100% 0 15px;
-}
+  &::after {
+    bottom: 0;
+    left: 0;
+    border-radius: 0 100% 0 15px;
+  }
 
-.card:hover::before,
-.card:hover:after {
-  width: 100%;
-  height: 100%;
-  border-radius: 15px;
-  transition: all 0.5s;
-}
+  &:hover::before,
+  &:hover:after {
+    width: 100%;
+    height: 100%;
+    border-radius: 15px;
+    transition: all 0.5s;
+  }
 
-.card:hover:after {
-  overflow: hidden;
-  content: "点击进入";
+  &:hover:after {
+    overflow: hidden;
+    content: "点击进入";
+  }
 }
 </style>

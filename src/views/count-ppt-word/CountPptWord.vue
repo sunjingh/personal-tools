@@ -1,6 +1,8 @@
 <template>
   <div flex flex-col items-center>
-    <h2 mt-8 mb="12%">统计ppt中的字数</h2>
+    <div flex items-center mt-8 mb="8%">
+      <h2>统计ppt中的字数</h2>
+    </div>
     <el-row w="50%" :gutter="20">
       <el-col :span="12">
         <div center mt-12>
@@ -37,13 +39,15 @@
         </div>
       </el-col>
     </el-row>
+    <GoBack mt="10%" @click="goBack">返回</GoBack>
   </div>
-
 </template>
 
 <script setup lang="ts">
 // @ts-expect-error pptx-parser 模块未提供类型定义文件
 import parse from 'pptx-parser'
+
+const router = useRouter()
 
 const pageNum = ref(0)
 const wordCount = ref(0)
@@ -112,6 +116,10 @@ function countWords(text: string) {
 
   // 如果没有匹配项，返回 0
   return textTemp.length;
+}
+
+function goBack() {
+  router.back()
 }
 </script>
 
