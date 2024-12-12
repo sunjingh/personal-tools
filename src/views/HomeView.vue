@@ -43,6 +43,9 @@ const clickItemList: IClickItem[] = [
 ]
 
 function routerTo(path: string) {
+  if (path === '') {
+    ElMessageBox.alert('请老婆大人随时提需求!', '提示', {})
+  }
   if (path) {
     router.push(path)
   }
