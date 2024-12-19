@@ -35,8 +35,8 @@ const clickItemList: IClickItem[] = [
     hoverBgColor: 'lightblue',
   },
   {
-    text: '敬请期待',
-    path: '',
+    text: '翻页时钟',
+    path: '/flip-clock',
     bgColor: 'rgb(176, 238, 246)',
     hoverBgColor: 'rgb(126, 138, 246)',
   },

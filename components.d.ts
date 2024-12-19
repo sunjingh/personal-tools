@@ -7,6 +7,10 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    CfcClock: typeof import('./src/components/flip-clock/CfcClock.vue')['default']
+    CfcSetBox: typeof import('./src/components/flip-clock/CfcSetBox.vue')['default']
+    CfcSlider: typeof import('./src/components/flip-clock/CfcSlider.vue')['default']
+    CfcTimePicker: typeof import('./src/components/flip-clock/CfcTimePicker.vue')['default']
     ElButton: typeof import('element-plus/es')['ElButton']
     ElCol: typeof import('element-plus/es')['ElCol']
     ElContainer: typeof import('element-plus/es')['ElContainer']

@@ -17,6 +17,11 @@ const router = createRouter({
       // which is lazy-loaded when the route is visited.
       component: () => import('../views/count-ppt-word/CountPptWord.vue'),
     },
+    {
+      path: '/flip-clock',
+      name: 'flipClock',
+      component: () => import('../views/flip-clock/FlipClock.vue'),
+    },
   ],
 })
 
