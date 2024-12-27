@@ -35,6 +35,12 @@ const clickItemList: IClickItem[] = [
     hoverBgColor: 'lightblue',
   },
   {
+    text: '统计pdf中的字数',
+    path: '/count-pdf-word',
+    bgColor: 'rgb(16, 218, 96)',
+    hoverBgColor: 'rgb(16, 168, 16)',
+  },
+  {
     text: '翻页时钟',
     path: '/flip-clock',
     bgColor: 'rgb(176, 238, 246)',
