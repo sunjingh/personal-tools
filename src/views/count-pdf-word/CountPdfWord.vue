@@ -41,7 +41,6 @@
 <script setup lang="ts">
 import { normalizeText } from '@/utils';
 import * as pdfjsLib from 'pdfjs-dist'
-import { type TextItem } from 'pdfjs-dist/types/src/display/api'
 import FileUpload from '@/components/buttons/FileUpload.vue'
 
 
@@ -99,7 +98,7 @@ async function countWordsInPDF(pdfSrc: string | URL | ArrayBuffer) {
       const textContent = await page.getTextContent();
 
       // 提取文本
-      const pageText = textContent.items.map(item => (item as TextItem).str).join(' ');
+      const pageText = textContent.items.map(item => (item as any).str).join(' ');
 
       pageTextResult.value += pageText
     }
