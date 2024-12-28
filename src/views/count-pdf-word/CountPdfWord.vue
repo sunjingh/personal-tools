@@ -45,7 +45,7 @@ import FileUpload from '@/components/buttons/FileUpload.vue'
 
 
 // 设置 PDF.js 的 Worker 路径
-pdfjsLib.GlobalWorkerOptions.workerSrc = '/public/pdf.worker.min.mjs';
+pdfjsLib.GlobalWorkerOptions.workerSrc = '/src/assets/pdf.worker.min.mjs';
 
 const pageNum = ref(0)
 const wordCount = ref(0)
