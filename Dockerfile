@@ -4,14 +4,17 @@ FROM node:23-alpine
 # 设置工作目录
 WORKDIR /app
 
-# 复制项目文件到容器中
-COPY . .
-
 # 安装pnpm
 RUN npm install -g pnpm --registry=https://registry.npmmirror.com
 
+COPY front/package.json .
+COPY front/pnpm-lock.yaml .
+
 # 安装项目依赖
 RUN pnpm install --registry=https://registry.npmmirror.com
+
+# 复制项目文件到容器中
+COPY . .
 
 # 构建 Vue 项目
 RUN npm run build
