@@ -7,8 +7,8 @@ WORKDIR /app
 # 安装pnpm
 RUN npm install -g pnpm --registry=https://registry.npmmirror.com
 
-COPY front/package.json .
-COPY front/pnpm-lock.yaml .
+COPY package.json .
+COPY pnpm-lock.yaml .
 
 # 安装项目依赖
 RUN pnpm install --registry=https://registry.npmmirror.com
