@@ -41,7 +41,7 @@
 <script setup lang="ts">
 import { normalizeText } from '@/utils';
 import * as pdfjsLib from 'pdfjs-dist'
-import workerSrc from 'pdfjs-dist/build/pdf.worker.mjs?url'
+import workerSrc from '/src/assets/pdf.worker.min.js?url'
 import FileUpload from '@/components/buttons/FileUpload.vue'
 
 
