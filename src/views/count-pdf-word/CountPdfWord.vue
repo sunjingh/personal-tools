@@ -41,13 +41,13 @@
 <script setup lang="ts">
 import { normalizeText } from '@/utils';
 import * as pdfjsLib from 'pdfjs-dist'
-// import workerSrc from 'pdfjs-dist/build/pdf.worker.mjs'
+import workerSrc from 'pdfjs-dist/build/pdf.worker.mjs?url'
 import FileUpload from '@/components/buttons/FileUpload.vue'
 
 
 // 设置 PDF.js 的 Worker 路径
-pdfjsLib.GlobalWorkerOptions.workerSrc = '/src/assets/pdf.worker.min.js'
-// pdfjsLib.GlobalWorkerOptions.workerSrc = workerSrc
+// pdfjsLib.GlobalWorkerOptions.workerSrc = '/src/assets/pdf.worker.min.js'
+pdfjsLib.GlobalWorkerOptions.workerSrc = workerSrc
 
 const pageNum = ref(0)
 const wordCount = ref(0)
@@ -100,7 +100,9 @@ async function countWordsInPDF(pdfSrc: string | URL | ArrayBuffer) {
       const textContent = await page.getTextContent();
 
       // 提取文本
-      const pageText = textContent.items.map(item => (item as any).str).join(' ');
+      const pageText = textContent.items.map(item => (item as {
+        str: string
+      }).str).join(' ');
 
       pageTextResult.value += pageText
     }
