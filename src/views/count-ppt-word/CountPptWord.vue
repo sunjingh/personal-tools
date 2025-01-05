@@ -26,9 +26,18 @@
                 <span ml-2>页</span>
               </el-descriptions-item>
             </el-descriptions>
-            <div>
-              <div text="14px" mb-2>排除标点符号</div>
-              <ToggleSwitch v-model="isRemovePunctuation" @change="handleToggleSwitchChange" />
+            <div flex justify-between items-end>
+              <div>
+                <div text="14px" mb-2>排除标点符号</div>
+                <ToggleSwitch v-model="isRemovePunctuation" @change="handleToggleSwitchChange" />
+              </div>
+              <el-button
+                type="primary"
+                :disabled="!pageTextResult.length"
+                @click="handleDownloadClick"
+              >
+                下载文件
+              </el-button>
             </div>
           </div>
         </CcCard>
@@ -40,8 +49,10 @@
 
 <script setup lang="ts">
 import { normalizeText } from '@/utils'
+import { translateBaidu } from '@/utils/translate'
 // @ts-expect-error pptx-parser 模块未提供类型定义文件
 import parse from 'pptx-parser'
+import JSZip from 'jszip'
 
 const pageNum = ref(0)
 const wordCount = ref(0)
@@ -50,6 +61,7 @@ const fileName = ref('文件信息')
 const isRemovePunctuation = ref(false)
 const loading = ref(false)
 const pageTextResult = ref<string>('')
+const thisFile = ref<File | undefined>(undefined)
 
 async function handleFileChange(event: Event) {
   loading.value = true
@@ -60,7 +72,7 @@ async function handleFileChange(event: Event) {
   if (file) {
     if (file.type !== 'application/vnd.openxmlformats-officedocument.presentationml.presentation') {
       // 清空 input 的值
-      (event.target as HTMLInputElement).value = ''
+      ;(event.target as HTMLInputElement).value = ''
       ElNotification({
         title: '只支持pptx格式',
         message: '若是ppt类型，请先转换成pptx格式',
@@ -68,6 +80,8 @@ async function handleFileChange(event: Event) {
       })
       return
     }
+
+    thisFile.value = file
 
     fileName.value = file.name
 
@@ -85,7 +99,6 @@ async function handleFileChange(event: Event) {
 
     wordCount.value = countWords(pageTextResult.value)
   }
-
 }
 
 interface TextRunObj {
@@ -100,17 +113,16 @@ interface ResultItem {
 function extractTextRunValues(obj: TextRunObj): ResultItem[] {
   const result: ResultItem[] = []
   function recurse(current: TextRunObj): void {
-    if (typeof current !== "object" || current === null) return
+    if (typeof current !== 'object' || current === null) return
 
     for (const key in current) {
       if (current[key]) {
-        if (key === "textRun") {
+        if (key === 'textRun') {
           result.push(current[key]) // 如果是 textRun 属性且值为字符串，提取其值
-        } else if (typeof current[key] === "object") {
+        } else if (typeof current[key] === 'object') {
           recurse(current[key] as TextRunObj) // 递归遍历子对象
         }
       }
-
     }
   }
   recurse(obj)
@@ -118,7 +130,7 @@ function extractTextRunValues(obj: TextRunObj): ResultItem[] {
 }
 
 function countWords(text: string) {
-  if (typeof text !== "string") return 0
+  if (typeof text !== 'string') return 0
 
   const textTemp = normalizeText(text)
 
@@ -134,6 +146,82 @@ function countWords(text: string) {
 function handleToggleSwitchChange() {
   wordCount.value = normalizeText(pageTextResult.value, isRemovePunctuation.value)?.length
 }
+
+// 处理 PPTX 文件
+async function processPptx(file: File, fontName: string, fontSize?: number) {
+  const pptData = await parse(file)
+  const zip = new JSZip()
+  const pptxContent = await zip.loadAsync(file)
+
+  // 定位幻灯片文件路径
+  const slideFiles = Object.keys(pptxContent.files).filter((path) =>
+    path.startsWith('ppt/slides/slide'),
+  )
+
+  async function recurse(current: TextRunObj, slideFile: string) {
+    if (typeof current !== 'object' || current === null) return
+
+    for (const key in current) {
+      if (current[key]) {
+        if (key === 'textRun' && current[key].content) {
+          // 这里进行翻译，只替换文本内容
+          const originalText = current[key].content
+          // const translatedText = await translateBaidu(originalText) // 进行实际翻译
+          const translatedText = originalText // 进行实际翻译
+
+          console.log('translatedText===>', translatedText)
+
+          // 如果翻译成功，则替换原文本
+          if (translatedText) {
+            // 获取对应的 slideXml 内容
+            const slideXml = await pptxContent.files[slideFile].async('text')
+
+            // 修改字体和字号
+            let updatedSlideXml = slideXml.replace(
+              /<a:rPr([^>]*?)sz="(\d+)"([^>]*?)>/g,
+              (match, before, originalSize, after) => {
+                const newSize = fontSize ? `${fontSize * 100}` : originalSize // 使用传入值或原有值
+                return `<a:rPr${before}sz="${newSize}" typeface="${fontName}"${after}>`
+              },
+            )
+
+            // 仅替换匹配的文本内容
+            updatedSlideXml = updatedSlideXml.replace(
+              new RegExp(`<a:t>${originalText}</a:t>`, 'g'), // 只替换原文匹配的部分
+              `<a:t>${translatedText}</a:t>`,
+            )
+
+            pptxContent.file(slideFile, updatedSlideXml) // 更新 PPTX 内容
+          }
+        } else if (typeof current[key] === 'object') {
+          await recurse(current[key] as TextRunObj, slideFile) // 递归遍历子对象
+        }
+      }
+    }
+  }
+
+  // 遍历所有幻灯片
+  for (const slideFile of slideFiles) {
+    await recurse(pptData, slideFile)
+  }
+
+  // 生成新的 PPT 文件
+  const updatedPptx = await pptxContent.generateAsync({ type: 'blob' })
+  return updatedPptx
+}
+
+async function handleDownloadClick() {
+  const fontName = 'MS Mincho' // 设置日文字体 MS Mincho, Ms Gothic, Meiryo UI
+  const fontSize = 0 // 设置字体大小
+
+  const updatedPptx = await processPptx(thisFile.value!, fontName, fontSize)
+  // 提供下载
+  const link = document.createElement('a')
+  link.href = URL.createObjectURL(updatedPptx)
+  link.download = 'translated.pptx'
+  link.click()
+}
 </script>
 
 <style scoped lang="scss"></style>
+@/utils/translate-api

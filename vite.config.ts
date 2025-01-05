@@ -15,6 +15,13 @@ export default defineConfig({
   server: {
     host: true,
     port: 8081,
+    proxy: {
+      '/api': {
+        target: 'https://fanyi-api.baidu.com', // 目标 API 地址
+        changeOrigin: true, // 是否跨域
+        rewrite: (path) => path.replace(/^\/api/, ''), // 重写路径，去掉 /api 前缀
+      },
+    },
   },
   plugins: [
     vue(),

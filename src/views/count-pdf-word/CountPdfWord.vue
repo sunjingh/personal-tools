@@ -26,9 +26,19 @@
                 <span ml-2>页</span>
               </el-descriptions-item>
             </el-descriptions>
-            <div mt-8>
-              <div text="14px" mb-2>排除标点符号</div>
-              <ToggleSwitch v-model="isRemovePunctuation" @change="handleToggleSwitchChange" />
+            <div mt-8 flex justify-between items-end>
+              <div>
+                <div text="14px" mb-2>排除标点符号</div>
+                <ToggleSwitch v-model="isRemovePunctuation" @change="handleToggleSwitchChange" />
+              </div>
+              <el-button
+                v-if="isSupported"
+                type="primary"
+                :disabled="!pageTextResult.length"
+                @click="handleCopyClick"
+              >
+                复制内容
+              </el-button>
             </div>
           </div>
         </CcCard>
@@ -39,11 +49,11 @@
 </template>
 
 <script setup lang="ts">
-import { normalizeText } from '@/utils';
+import { normalizeText } from '@/utils'
 import * as pdfjsLib from 'pdfjs-dist'
 import workerSrc from '/src/assets/pdf.worker.min.js?url'
 import FileUpload from '@/components/buttons/FileUpload.vue'
-
+import { useClipboard } from '@vueuse/core'
 
 // 设置 PDF.js 的 Worker 路径
 // pdfjsLib.GlobalWorkerOptions.workerSrc = '/src/assets/pdf.worker.min.js'
@@ -66,17 +76,17 @@ async function handleFileChange(event: Event) {
   const file = (event.target as HTMLInputElement)?.files?.[0]
   if (file) {
     fileName.value = file.name
-    const reader = new FileReader();
+    const reader = new FileReader()
     reader.onload = async function () {
-      const arrayBuffer = reader.result;
+      const arrayBuffer = reader.result
       if (arrayBuffer) {
-        const countResult = await countWordsInPDF(arrayBuffer);
-        wordCount.value = countResult?.wordCount ?? 0;
-        pageNum.value = countResult?.pageNum ?? 0;
-        loading.value = false;
+        const countResult = await countWordsInPDF(arrayBuffer)
+        wordCount.value = countResult?.wordCount ?? 0
+        pageNum.value = countResult?.pageNum ?? 0
+        loading.value = false
       }
-    };
-    reader.readAsArrayBuffer(file);
+    }
+    reader.readAsArrayBuffer(file)
   }
 }
 
@@ -84,39 +94,57 @@ async function handleFileChange(event: Event) {
 async function countWordsInPDF(pdfSrc: string | URL | ArrayBuffer) {
   try {
     // 加载 PDF 文档
-    const pdfDoc = await pdfjsLib.getDocument(pdfSrc).promise;
+    const pdfDoc = await pdfjsLib.getDocument(pdfSrc).promise
 
-    let wordCount = 0;
+    let wordCount = 0
 
     pageTextResult.value = ''
 
-    const numPages = pdfDoc.numPages;
+    const numPages = pdfDoc.numPages
 
     // 遍历每一页
     for (let i = 1; i <= numPages; i++) {
-      const page = await pdfDoc.getPage(i);
+      const page = await pdfDoc.getPage(i)
 
       // 获取页面内容
-      const textContent = await page.getTextContent();
+      const textContent = await page.getTextContent()
+
+      console.log('textContent===>', textContent)
 
       // 提取文本
-      const pageText = textContent.items.map(item => (item as {
-        str: string
-      }).str).join(' ');
+      const pageText = textContent.items
+        .map(
+          (item) =>
+            (
+              item as {
+                str: string
+              }
+            ).str,
+        )
+        .join(' ')
 
-      pageTextResult.value += pageText
+      pageTextResult.value += `${pageText}\n`
     }
     // 统计字数
     wordCount = normalizeText(pageTextResult.value, isRemovePunctuation.value)?.length ?? 0
 
-    return { wordCount, pageNum: numPages };
+    return { wordCount, pageNum: numPages }
   } catch (err) {
-    console.error('读取 PDF 出错:', err);
+    console.error('读取 PDF 出错:', err)
   }
 }
 
 function handleToggleSwitchChange() {
   wordCount.value = normalizeText(pageTextResult.value, isRemovePunctuation.value)?.length ?? 0
+}
+
+const { copy, copied, isSupported } = useClipboard({ source: pageTextResult })
+function handleCopyClick() {
+  if (pageTextResult.value?.length > 0) {
+    copy().then(() => {
+      if (copied.value) ElMessage.success('复制成功')
+    })
+  }
 }
 </script>
 

@@ -9,6 +9,7 @@ declare module 'vue' {
   export interface GlobalComponents {
     CcCard: typeof import('./src/components/card/CcCard.vue')['default']
     CfcClock: typeof import('./src/components/flip-clock/CfcClock.vue')['default']
+    ElButton: typeof import('element-plus/es')['ElButton']
     ElCol: typeof import('element-plus/es')['ElCol']
     ElContainer: typeof import('element-plus/es')['ElContainer']
     ElDescriptions: typeof import('element-plus/es')['ElDescriptions']
