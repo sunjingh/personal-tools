@@ -39,13 +39,13 @@
             <h3>转换进度：</h3>
             <el-progress :text-inside="true" :stroke-width="18" :percentage="convertProgress" />
             <div flex items-center gap-2>
-              <h3>目标字体：</h3>
+              <span>目标字体：</span>
               <el-select v-model="fontName" style="width: 100px">
                 <el-option v-for="item in fontOptions" :key="item.value" :label="item.label" :value="item.value" />
               </el-select>
             </div>
             <div flex items-end>
-              <el-button type="primary" :disabled="!pageTextResult.length" @click="handleConvertClick">
+              <el-button type="warning" :disabled="!pageTextResult.length" @click="handleConvertClick">
                 转换文件
               </el-button>
               <el-button type="primary" :disabled="convertProgress < 100" @click="handleDownloadClick">
@@ -66,6 +66,7 @@ import { translateBaidu } from '@/utils/translate'
 // @ts-expect-error pptx-parser 模块未提供类型定义文件
 import parse from 'pptx-parser'
 import JSZip from 'jszip'
+import { round } from 'lodash-es'
 
 const pageNum = ref(0)
 const wordCount = ref(0)
@@ -172,18 +173,12 @@ async function processPptx(file: File, fontName: string, fontSize?: number) {
   const zip = new JSZip()
   const pptxContent = await zip.loadAsync(file)
 
-  console.log('pptData===>', pptData);
-
-
   // 定位幻灯片文件路径
   const slideFiles = Object.keys(pptxContent.files).filter((path) =>
     path.startsWith('ppt/slides/slide'),
   )
 
-  console.log('slideFiles===>', slideFiles);
-
   const translateList: Array<{ originalText: string; originalTextRegStr: string; slideFile: string }> = []
-
 
   async function recurse(obj: Record<string, unknown>, slideFile: string) {
     if (typeof obj !== 'object' || obj === null) return
@@ -194,10 +189,7 @@ async function processPptx(file: File, fontName: string, fontSize?: number) {
           const textSpans = obj[key] as Array<TextSpansObj>
           // 这里进行翻译，只替换文本内容
           const originalText = textSpans.map(ele => ele.textRun?.content ?? '').join('').replace(/\/32/g, "")
-          const originalTextRegStr = textSpans.map(ele => ele.textRun?.content?.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') ?? '').filter(ele => Boolean(ele.replace(/\s+/g, ""))).join('.*').replace(/\/32/g, "")
-
-          // console.log('originalText===>', originalText)
-
+          const originalTextRegStr = textSpans.map(ele => ele.textRun?.content?.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') ?? '').filter(ele => Boolean(ele.replace(/\s+/g, ""))).join('.*?').replace(/\/32/g, "")
 
           // 如果翻译成功，则替换原文本
           if (originalText.trim()) {
@@ -215,20 +207,21 @@ async function processPptx(file: File, fontName: string, fontSize?: number) {
     await recurse(pptData.slides[index], slideFile)
   }
 
+  // console.log('translateList===>', translateList)
+
   for (const [index, element] of translateList.entries()) {
     await translate(element.originalText, element.originalTextRegStr, element.slideFile)
-    convertProgress.value = (index + 1) / translateList.length * 100
+    convertProgress.value = round((index + 1) / translateList.length * 100, 2)
   }
 
   async function translate(originalText: string, originalTextRegStr: string, slideFile: string) {
     const translatedText = await translateBaidu(originalText) // 进行实际翻译
-    // const translatedText = originalText // 进行实际翻译
+    // const translatedText = `${originalText}哈哈哈` // 进行实际翻译
 
-    console.log('originalTextRegStr===>', originalTextRegStr)
     // 获取对应的 slideXml 内容
     const slideXml = await pptxContent.files[slideFile].async('text')
 
-    console.log('slideXml===>', slideXml)
+    // console.log('slideXml===>', slideXml)
     // 修改字号
     let updatedSlideXml = slideXml.replace(
       /<a:rPr([^>]*?)sz="(\d+)"([^>]*?)>/g,
@@ -271,8 +264,7 @@ async function processPptx(file: File, fontName: string, fontSize?: number) {
   }
 
   // 生成新的 PPT 文件
-  const updatedPptx = await pptxContent.generateAsync({ type: 'blob' })
-  return updatedPptx
+  return pptxContent.generateAsync({ type: 'blob' })
 }
 
 const thisUpdatedPptx = ref<Blob>()
@@ -295,7 +287,7 @@ async function handleDownloadClick() {
   // 提供下载
   const link = document.createElement('a')
   link.href = URL.createObjectURL(thisUpdatedPptx.value!)
-  link.download = 'translated.pptx'
+  link.download = `${fileName.value}-translated.pptx`
   link.click()
 }
 </script>
