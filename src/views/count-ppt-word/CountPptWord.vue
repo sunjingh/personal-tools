@@ -5,7 +5,7 @@
     </div>
     <el-row w="50%" :gutter="20">
       <el-col :span="12">
-        <div center mt-12>
+        <div h-full center>
           <FileUpload accept=".pptx" @change="handleFileChange" />
         </div>
       </el-col>
@@ -31,11 +31,24 @@
                 <div text="14px" mb-2>排除标点符号</div>
                 <ToggleSwitch v-model="isRemovePunctuation" @change="handleToggleSwitchChange" />
               </div>
-              <el-button
-                type="primary"
-                :disabled="!pageTextResult.length"
-                @click="handleDownloadClick"
-              >
+            </div>
+          </div>
+        </CcCard>
+        <CcCard mt-3>
+          <div flex flex-col justify-around h-full p-6>
+            <h3>转换进度：</h3>
+            <el-progress :text-inside="true" :stroke-width="18" :percentage="convertProgress" />
+            <div flex items-center gap-2>
+              <h3>目标字体：</h3>
+              <el-select v-model="fontName" style="width: 100px">
+                <el-option v-for="item in fontOptions" :key="item.value" :label="item.label" :value="item.value" />
+              </el-select>
+            </div>
+            <div flex items-end>
+              <el-button type="primary" :disabled="!pageTextResult.length" @click="handleConvertClick">
+                转换文件
+              </el-button>
+              <el-button type="primary" :disabled="convertProgress < 100" @click="handleDownloadClick">
                 下载文件
               </el-button>
             </div>
@@ -72,7 +85,7 @@ async function handleFileChange(event: Event) {
   if (file) {
     if (file.type !== 'application/vnd.openxmlformats-officedocument.presentationml.presentation') {
       // 清空 input 的值
-      ;(event.target as HTMLInputElement).value = ''
+      ; (event.target as HTMLInputElement).value = ''
       ElNotification({
         title: '只支持pptx格式',
         message: '若是ppt类型，请先转换成pptx格式',
@@ -99,6 +112,12 @@ async function handleFileChange(event: Event) {
 
     wordCount.value = countWords(pageTextResult.value)
   }
+}
+
+interface TextSpansObj {
+  order: number // textRun 属性的类型为ResultItem
+  textRun: ResultItem
+  [key: string]: unknown // 其他可选的属性，可以是任意类型
 }
 
 interface TextRunObj {
@@ -153,56 +172,102 @@ async function processPptx(file: File, fontName: string, fontSize?: number) {
   const zip = new JSZip()
   const pptxContent = await zip.loadAsync(file)
 
+  console.log('pptData===>', pptData);
+
+
   // 定位幻灯片文件路径
   const slideFiles = Object.keys(pptxContent.files).filter((path) =>
     path.startsWith('ppt/slides/slide'),
   )
 
-  async function recurse(current: TextRunObj, slideFile: string) {
-    if (typeof current !== 'object' || current === null) return
+  console.log('slideFiles===>', slideFiles);
 
-    for (const key in current) {
-      if (current[key]) {
-        if (key === 'textRun' && current[key].content) {
+  const translateList: Array<{ originalText: string; originalTextRegStr: string; slideFile: string }> = []
+
+
+  async function recurse(obj: Record<string, unknown>, slideFile: string) {
+    if (typeof obj !== 'object' || obj === null) return
+
+    for (const key in obj) {
+      if (obj[key]) {
+        if (key === 'textSpans') {
+          const textSpans = obj[key] as Array<TextSpansObj>
           // 这里进行翻译，只替换文本内容
-          const originalText = current[key].content
-          // const translatedText = await translateBaidu(originalText) // 进行实际翻译
-          const translatedText = originalText // 进行实际翻译
+          const originalText = textSpans.map(ele => ele.textRun?.content ?? '').join('').replace(/\/32/g, "")
+          const originalTextRegStr = textSpans.map(ele => ele.textRun?.content?.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') ?? '').filter(ele => Boolean(ele.replace(/\s+/g, ""))).join('.*').replace(/\/32/g, "")
 
-          console.log('translatedText===>', translatedText)
+          // console.log('originalText===>', originalText)
+
 
           // 如果翻译成功，则替换原文本
-          if (translatedText) {
-            // 获取对应的 slideXml 内容
-            const slideXml = await pptxContent.files[slideFile].async('text')
-
-            // 修改字体和字号
-            let updatedSlideXml = slideXml.replace(
-              /<a:rPr([^>]*?)sz="(\d+)"([^>]*?)>/g,
-              (match, before, originalSize, after) => {
-                const newSize = fontSize ? `${fontSize * 100}` : originalSize // 使用传入值或原有值
-                return `<a:rPr${before}sz="${newSize}" typeface="${fontName}"${after}>`
-              },
-            )
-
-            // 仅替换匹配的文本内容
-            updatedSlideXml = updatedSlideXml.replace(
-              new RegExp(`<a:t>${originalText}</a:t>`, 'g'), // 只替换原文匹配的部分
-              `<a:t>${translatedText}</a:t>`,
-            )
-
-            pptxContent.file(slideFile, updatedSlideXml) // 更新 PPTX 内容
+          if (originalText.trim()) {
+            translateList.push({ originalText, originalTextRegStr, slideFile })
           }
-        } else if (typeof current[key] === 'object') {
-          await recurse(current[key] as TextRunObj, slideFile) // 递归遍历子对象
+        } else if (typeof obj[key] === 'object') {
+          await recurse(obj[key] as Record<string, unknown>, slideFile) // 递归遍历子对象
         }
       }
     }
   }
 
   // 遍历所有幻灯片
-  for (const slideFile of slideFiles) {
-    await recurse(pptData, slideFile)
+  for (const [index, slideFile] of slideFiles.entries()) {
+    await recurse(pptData.slides[index], slideFile)
+  }
+
+  for (const [index, element] of translateList.entries()) {
+    await translate(element.originalText, element.originalTextRegStr, element.slideFile)
+    convertProgress.value = (index + 1) / translateList.length * 100
+  }
+
+  async function translate(originalText: string, originalTextRegStr: string, slideFile: string) {
+    const translatedText = await translateBaidu(originalText) // 进行实际翻译
+    // const translatedText = originalText // 进行实际翻译
+
+    console.log('originalTextRegStr===>', originalTextRegStr)
+    // 获取对应的 slideXml 内容
+    const slideXml = await pptxContent.files[slideFile].async('text')
+
+    console.log('slideXml===>', slideXml)
+    // 修改字号
+    let updatedSlideXml = slideXml.replace(
+      /<a:rPr([^>]*?)sz="(\d+)"([^>]*?)>/g,
+      (match, before, originalSize, after) => {
+        const newSize = fontSize ? `${fontSize * 100}` : originalSize // 使用传入值或原有值
+        return `<a:rPr${before}sz="${newSize}"${after}>`
+      },
+    )
+
+    // 修改lang、altLang
+    updatedSlideXml = slideXml.replace(
+      /<a:rPr([^>]*?)lang=".+?" altLang=".+?"([^>]*?)>/g,
+      (match, before, after) => {
+        return `<a:rPr${before}lang="zh-CN" altLang="en-US"${after}>`
+      },
+    )
+
+    // 修改字体
+    updatedSlideXml = slideXml.replace(
+      /<(a:ea|a:latin)([^>]*?)\btypeface="[^"]*"(.*?)>/g,
+      (match, tag, before, after) => {
+        // 如果存在 typeface，则替换为指定值
+        return `<${tag}${before}typeface="${fontName}"${after}>`;
+      }
+    ).replace(
+      /<(a:ea|a:latin)((?:(?!\btypeface=).)*?)>/g,
+      (match, tag, before) => {
+        // 如果不存在 typeface，则添加指定值
+        return `<${tag}${before} typeface="${fontName}">`;
+      }
+    );
+
+    // 仅替换匹配的文本内容
+    updatedSlideXml = updatedSlideXml.replace(
+      new RegExp(`<a:t>${originalTextRegStr}</a:t>`, 'g'), // 只替换原文匹配的部分
+      `<a:t>${translatedText}</a:t>`,
+    )
+
+    pptxContent.file(slideFile, updatedSlideXml) // 更新 PPTX 内容
   }
 
   // 生成新的 PPT 文件
@@ -210,18 +275,29 @@ async function processPptx(file: File, fontName: string, fontSize?: number) {
   return updatedPptx
 }
 
-async function handleDownloadClick() {
-  const fontName = 'MS Mincho' // 设置日文字体 MS Mincho, Ms Gothic, Meiryo UI
+const thisUpdatedPptx = ref<Blob>()
+const convertProgress = ref(0)
+const fontName = ref('MS Gothic') // 设置日文字体 MS Mincho, MS Gothic, Meiryo UI, 华文彩云
+const fontOptions = [
+  { label: 'MS Mincho', value: 'MS Mincho' },
+  { label: 'MS Gothic', value: 'MS Gothic' },
+  { label: 'Meiryo UI', value: 'Meiryo UI' },
+  { label: '华文彩云', value: '华文彩云' },
+]
+async function handleConvertClick() {
   const fontSize = 0 // 设置字体大小
 
-  const updatedPptx = await processPptx(thisFile.value!, fontName, fontSize)
+  const updatedPptx = await processPptx(thisFile.value!, fontName.value, fontSize)
+  thisUpdatedPptx.value = updatedPptx
+}
+
+async function handleDownloadClick() {
   // 提供下载
   const link = document.createElement('a')
-  link.href = URL.createObjectURL(updatedPptx)
+  link.href = URL.createObjectURL(thisUpdatedPptx.value!)
   link.download = 'translated.pptx'
   link.click()
 }
 </script>
 
 <style scoped lang="scss"></style>
-@/utils/translate-api

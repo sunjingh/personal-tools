@@ -20,7 +20,7 @@ export async function translateBaidu(text: string, fromLang = 'auto', toLang = '
   const salt = Date.now() // 随机数
   const sign = MD5(appid + text + salt + key).toString() // 生成签名
 
-  const url = '/api/api/trans/vip/translate'
+  const url = '/baidu_translate/api/trans/vip/translate'
 
   try {
     // 发送 GET 请求
