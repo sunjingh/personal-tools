@@ -43,6 +43,11 @@
               <el-select v-model="fontName" style="width: 100px">
                 <el-option v-for="item in fontOptions" :key="item.value" :label="item.label" :value="item.value" />
               </el-select>
+              <span>翻译工具：</span>
+              <el-select v-model="translateApiType" style="width: 100px">
+                <el-option v-for="item in translateApiTypeOptions" :key="item.value" :label="item.label"
+                  :value="item.value" />
+              </el-select>
             </div>
             <div flex items-end>
               <el-button type="warning" :disabled="!pageTextResult.length" @click="handleConvertClick">
@@ -67,6 +72,7 @@ import { translateBaidu } from '@/utils/translate'
 import parse from 'pptx-parser'
 import JSZip from 'jszip'
 import { round } from 'lodash-es'
+import { ETranslateApiType } from '@/types'
 
 const pageNum = ref(0)
 const wordCount = ref(0)
@@ -215,7 +221,14 @@ async function processPptx(file: File, fontName: string, fontSize?: number) {
   }
 
   async function translate(originalText: string, originalTextRegStr: string, slideFile: string) {
-    const translatedText = await translateBaidu(originalText) // 进行实际翻译
+    let translatedText = ''
+    switch (translateApiType.value) {
+      case ETranslateApiType.BAIDU:
+        translatedText = await translateBaidu(originalText) // 进行实际翻译
+        break
+      default:
+        translatedText = await translateBaidu(originalText) // 进行实际翻译
+    }
     // const translatedText = `${originalText}哈哈哈` // 进行实际翻译
 
     // 获取对应的 slideXml 内容
@@ -275,6 +288,10 @@ const fontOptions = [
   { label: 'MS Gothic', value: 'MS Gothic' },
   { label: 'Meiryo UI', value: 'Meiryo UI' },
   { label: '华文彩云', value: '华文彩云' },
+]
+const translateApiType = ref<ETranslateApiType>(ETranslateApiType.BAIDU)
+const translateApiTypeOptions = [
+  { label: '百度翻译', value: ETranslateApiType.BAIDU },
 ]
 async function handleConvertClick() {
   const fontSize = 0 // 设置字体大小
